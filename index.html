@@ -1,62 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ADB USB Connection</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .container {
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            width: 400px;
-        }
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        pre {
-            background-color: #e9ecef;
-            padding: 10px;
-            margin-top: 20px;
-            text-align: left;
-            max-height: 300px;
-            overflow-y: scroll;
-            border-radius: 5px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h1>ADB USB Connection</h1>
-    <button id="connectBtn">Connect to Android Device</button>
-    <pre id="output">No device connected</pre>
-</div>
-
 <script>
     const connectButton = document.getElementById('connectBtn');
     const output = document.getElementById('output');
@@ -71,15 +12,24 @@
 
             const device = await navigator.usb.requestDevice({ filters });
 
-            // If permission is granted, proceed
-            await device.open(); // Open a connection to the device
+            // Open the device
+            await device.open();
             output.innerText = `Device connected: ${device.productName}`;
 
-            await device.selectConfiguration(1); // Select ADB interface
-            await device.claimInterface(0);
+            // List the available interfaces
+            const interfaces = device.configuration.interfaces;
+            output.innerText += '\nAvailable interfaces:';
+            interfaces.forEach((interfaceInfo, index) => {
+                output.innerText += `\nInterface ${index}: Class ${interfaceInfo.interfaceClass}, Subclass ${interfaceInfo.interfaceSubclass}`;
+            });
 
+            // Assuming interface 0 (just as a fallback; you might need to select the correct one)
+            await device.selectConfiguration(1);
+
+            // Now try to claim the interface
+            await device.claimInterface(0); // Assuming interface 0, but adjust this based on actual interfaces
             output.innerText += '\nADB Interface claimed.';
-            
+
             // Send a sample ADB command
             const adbCommand = new Uint8Array([0x48, 0x01, 0x00, 0x01, 0x01]); // Sample ADB command
             await device.transferOut(1, adbCommand); // Send command
@@ -95,6 +45,3 @@
         }
     });
 </script>
-
-</body>
-</html>
