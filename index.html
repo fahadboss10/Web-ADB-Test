@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ADB USB Connection</title>
+    <title>ADB Device Info</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -20,7 +20,7 @@
             padding: 20px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             text-align: center;
-            width: 400px;
+            width: 500px;
         }
         h1 {
             font-size: 24px;
@@ -52,14 +52,25 @@
 <body>
 
 <div class="container">
-    <h1>ADB USB Connection</h1>
-    <button id="connectBtn">Connect to Android Device</button>
+    <h1>ADB Device Info</h1>
+    <button id="connectBtn">Get Device Info</button>
     <pre id="output">No device connected</pre>
 </div>
 
 <script>
     const connectButton = document.getElementById('connectBtn');
     const output = document.getElementById('output');
+
+    const adbCommands = [
+        'shell getprop ro.product.brand',
+        'shell getprop ro.build.version.release',
+        'shell getprop ro.product.model',
+        'shell getprop ro.product.board',
+        'shell getprop ro.sf.lcd_density',
+        'shell getprop ro.build.display.id',
+        'shell getprop ro.build.version.security_patch',
+        'shell getprop ro.build.date'
+    ];
 
     connectButton.addEventListener('click', async () => {
         output.innerText = "Attempting to connect...";
@@ -70,52 +81,46 @@
             ];
 
             const device = await navigator.usb.requestDevice({ filters });
-
-            // Open the device
             await device.open();
             output.innerText = `Device connected: ${device.productName}`;
 
-            // Select the configuration
             await device.selectConfiguration(1);
 
-            // List the available interfaces
             const interfaces = device.configuration.interfaces;
             output.innerText += '\nAvailable interfaces:';
             interfaces.forEach((interfaceInfo, index) => {
-                output.innerText += `\nInterface ${index}: Class ${interfaceInfo.interfaceClass}, Subclass ${interfaceInfo.interfaceSubclass}, Protocol ${interfaceInfo.alternate.interfaceProtocol}`;
+                output.innerText += `\nInterface ${index}: Class ${interfaceInfo.interfaceClass}, Subclass ${interfaceInfo.interfaceSubclass}`;
             });
 
-            // Assuming interface 0, adjust if another interface has ADB class
-            let claimedInterface = false;
-            for (let i = 0; i < interfaces.length; i++) {
-                const interfaceInfo = interfaces[i];
-                if (interfaceInfo.interfaceClass === 0xFF) {  // Check for vendor-specific class
-                    await device.claimInterface(i); // Claim the interface
-                    output.innerText += `\nClaimed Interface ${i} (Class 0xFF: Vendor-Specific).`;
-                    claimedInterface = true;
-                    break;
-                }
+            // Assuming ADB interface is at index 0 and using bulk transfer (adjust if needed)
+            await device.claimInterface(0);
+            output.innerText += '\nADB Interface claimed.';
+
+            for (const command of adbCommands) {
+                await sendADBCommand(device, command);
             }
-
-            if (!claimedInterface) {
-                output.innerText += '\nNo vendor-specific interface found to claim.';
-                return;
-            }
-
-            // Send a sample ADB command
-            const adbCommand = new Uint8Array([0x48, 0x01, 0x00, 0x01, 0x01]); // Sample ADB command
-            await device.transferOut(1, adbCommand); // Send command
-
-            output.innerText += '\nADB command sent.';
-
-            // Receive response
-            const response = await device.transferIn(1, 64);
-            output.innerText += '\nResponse received: ' + new TextDecoder().decode(response.data);
-
         } catch (error) {
             output.innerText = `Error: ${error.message}`;
         }
     });
+
+    async function sendADBCommand(device, command) {
+        const output = document.getElementById('output');
+        try {
+            const adbCommand = new TextEncoder().encode(`host:${command}\n`);
+
+            // Send the ADB command to the device
+            await device.transferOut(1, adbCommand);
+            output.innerText += `\nCommand sent: ${command}`;
+
+            // Receive the response from the device
+            const response = await device.transferIn(1, 64);
+            const responseData = new TextDecoder().decode(response.data);
+            output.innerText += `\nResponse: ${responseData.trim()}`;
+        } catch (error) {
+            output.innerText += `\nError running ADB command: ${command}. ${error.message}`;
+        }
+    }
 </script>
 
 </body>
