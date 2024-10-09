@@ -65,14 +65,10 @@
         output.innerText = "Attempting to connect...";
         try {
             const filters = [
-                { vendorId: 0x18D1 }, // Google
-                { vendorId: 0x04E8 }, // Samsung
-                { vendorId: 0x12D1 }, // Huawei
-                { vendorId: 0x22B8 }, // Motorola
-                { vendorId: 0x2A70 }, // Xiaomi
+                { vendorId: 0x0E8D, productId: 0x201C }, // Your device's VID and PID
+                { vendorId: 0x18D1 }, // Google vendor ID (fallback)
             ];
 
-            // Request permission to access the USB device
             const device = await navigator.usb.requestDevice({ filters });
 
             // If permission is granted, proceed
@@ -85,7 +81,7 @@
             output.innerText += '\nADB Interface claimed.';
             
             // Send a sample ADB command
-            const adbCommand = new Uint8Array([0x48, 0x01, 0x00, 0x01, 0x01]); // Sample
+            const adbCommand = new Uint8Array([0x48, 0x01, 0x00, 0x01, 0x01]); // Sample ADB command
             await device.transferOut(1, adbCommand); // Send command
 
             output.innerText += '\nADB command sent.';
